@@ -18,6 +18,46 @@ if (version.split('.')[0] !== '14') {
 
 /**
  *
+ * @param channel  The channel the messages are from
+ * @param limit    The limit of Messages to be Fetched
+ * @returns        The generated messages
+ */
+async function fetchManager(channel, limit = Infinity) {
+  if (!channel) {
+    throw new Error(`Expected channel, got ${typeof channel}.`);
+  }
+  if (limit <= 100) {
+    return channel.messages.fetch({ limit });
+  }
+
+  let collection = new Collection();
+  let lastId = null;
+  let options = {};
+  let remaining = limit;
+
+  while (remaining > 0) {
+    options.limit = remaining > 100 ? 100 : remaining;
+    remaining = remaining > 100 ? remaining - 100 : 0;
+
+    if (lastId) {
+      options.before = lastId;
+    }
+
+    let messages = await channel.messages.fetch(options);
+
+    if (!messages.last()) {
+      break;
+    }
+
+    collection = collection.concat(messages);
+    lastId = messages.last().id;
+  }
+  return collection.reverse()
+}
+
+
+/**
+ *
  * @param messages The messages to generate a transcript from
  * @param channel  The channel the messages are from (used for header and guild name)
  * @param options  The options to use when generating the transcript
@@ -90,26 +130,12 @@ export async function createTranscript<T extends ExportReturnType = ExportReturn
   // until there are no more messages, keep fetching
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    // create fetch options
-    const options = { limit: 100, before: lastMessageId };
-    if (!lastMessageId) delete options.before;
-
-    // fetch messages
-    const messages = await channel.messages.fetch(options);
-
-    // add the messages to the array
-    allMessages.push(...messages.values());
-    lastMessageId = messages.last()?.id;
-
-    // if there are no more messages, break
-    if (messages.size < 100) break;
-
-    // if the limit has been reached, break
-    if (allMessages.length >= (options.limit ?? Infinity)) break;
+     // fetch from function above
+  let fetchedMessages = await fetchManager()
   }
 
   // generate the transcript
-  return generateFromMessages<T>(allMessages.reverse(), channel, options);
+  return generateFromMessages<T>(fetchedMessages, channel, options);
 }
 
 export default {

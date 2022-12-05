@@ -87,7 +87,7 @@ export default async function renderMessages({ messages, channel, callbacks, ...
     <html>
       <head>
         <meta name="viewport" content="width=device-width" />
-
+        <meta charset="utf-8" />
         {/* favicon */}
         <link
           rel="icon"
